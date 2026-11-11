@@ -22,6 +22,7 @@ require('./src/routes/invoices');
 require('./src/routes/shop');
 require('./src/routes/sync');
 require('./src/routes/health');
+require('./src/routes/whatsapp');
 require('./src/autoexec');
 require('./src/cloudbackup');
 require('./src/autosync');
