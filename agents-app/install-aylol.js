@@ -220,7 +220,7 @@ if (fs.existsSync("public/js/main.js")) {
 if (fs.existsSync('src/routes/lines.js')) {
   let ln = fs.readFileSync('src/routes/lines.js', 'utf8');
   if (ln.includes('ay:bill:') === false) {
-            ln = ln.replace(/(/\^lyn:\/\.test\([^\]]+\))/g, '($1 || /^ay:(?:bill|esim)/.test(String(pkg?.art_card_id || "")))');
+            ln = ln.replace("/^lyn:/.test(pkg.art_card_id || '')", "(/^lyn:/.test(pkg.art_card_id || '') || /^ay:(?:bill|esim):/.test(String(pkg?.art_caln = ln.replace("/^lyn:/.test(pkg.art_card_id || '')", "(/^lyn:/.test(pkg.art_card_id || '') || /^ay:(?:bill|esim):/.test(String(pkg?.art_card_id || '')))");rd_id || '')))");([^\]]+\))/g, '($1 || /^ay:(?:bill|esim)/.test(String(pkg?.art_card_id || "")))');
     
     ln = ln.replace(/(system\s*===\s*'lyinvoice')/g, "($1 || system === 'ayinvoice')");
     fs.writeFileSync('src/routes/lines.js', ln);
