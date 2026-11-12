@@ -109,7 +109,7 @@ function createLine(user, body) {
   // the list shown, and nothing else (no SIM, no porting, no eSIM switch — an eSIM package brings its eSIM).
   // Or, as an eSIM: one of the free numbers Layan offers as a new eSIM, whose eSIM (and QR code) Layan gives when it is
   // activated — the customer shop and agents can both sell these.
-  const lyRef = kind === 'new' && /^lyn:/.test(pkg.art_card_id || '') ? require('../layan').parseRef(pkg.art_card_id) : null;
+  const lyRef = kind === 'new' &&  (/^lyn:/.test(pkg.art_card_id || '') ? require('../layan').parseRef(pkg.art_card_id) : null;
   let lyJob = null;
   if (lyRef && esim) {
     if (port) fail(400, 'هذه الرزمة لا تدعم تحويل الرقم مع eSIM');
