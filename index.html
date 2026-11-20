@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>إدارة اشتراكات الشرائح والزبائن</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Cairo', 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .ltr-num {
+      direction: ltr;
+      unicode-bidi: isolate;
+      font-family: 'Inter', monospace;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-24">
+
+  <!-- Top App Bar -->
+  <header class="sticky top-0 z-30 bg-slate-900 text-white shadow-md">
+    <div class="max-w-5xl mx-auto px-3 py-3 flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-emerald-500 flex items-center justify-center text-white font-bold text-lg shadow">
+          📱
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-extrabold leading-tight">مدير الاشتراكات</h1>
+          <p class="text-[11px] text-slate-300" id="headerSubtitle">جاري التحميل...</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button id="btnOpenDataModal" type="button" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 transition">
+          نسخ/استيراد
+        </button>
+        <button id="btnAddSub" type="button" class="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-xs sm:text-sm font-bold text-white shadow transition">
+          + جديد
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-3 pt-3 space-y-3">
+
+    <!-- KPI Summary Cards -->
+    <section class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="kpiGrid">
+      <div class="bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
+        <div class="text-xs text-slate-500 font-semibold">إجمالي الشرائح</div>
+        <div class="text-xl font-extrabold text-slate-900 mt-0.5" id="kpiTotal">0</div>
+        <div class="text-[11px] text-slate-400 mt-0.5" id="kpiSimSplit">eSIM: 0 · بلاستيك: 0</div>
+      </div>
+      <div class="bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
+        <div class="text-xs text-slate-500 font-semibold">تنبيهات الانتهاء (≤3 أيام)</div>
+        <div class="text-xl font-extrabold text-amber-600 mt-0.5" id="kpiAlerts">0</div>
+        <div class="text-[11px] text-slate-400 mt-0.5" id="kpiActiveCount">مفعل: 0</div>
+      </div>
+      <div class="bg-white rounded-xl p-3 border border-rose-200 shadow-sm bg-rose-50/30">
+        <div class="text-xs text-rose-700 font-semibold">إجمالي الديون</div>
+        <div class="text-xl font-extrabold text-rose-600 mt-0.5 ltr-num text-right" id="kpiDebt">0 ₪</div>
+        <div class="text-[11px] text-rose-500 mt-0.5" id="kpiDebtCount">0 زبون عليه دين</div>
+      </div>
+      <div class="bg-white rounded-xl p-3 border border-emerald-200 shadow-sm bg-emerald-50/30">
+        <div class="text-xs text-emerald-700 font-semibold">تجديدات الزبائن / الوكالة</div>
+        <div class="text-lg font-extrabold text-emerald-700 mt-0.5 ltr-num text-right" id="kpiRevenue">0 ₪</div>
+        <div class="text-[11px] text-emerald-600 mt-0.5 ltr-num text-right" id="kpiAgencyCost">وكالة: 0 ₪</div>
+      </div>
+    </section>
+
+    <!-- Search & Status Tabs -->
+    <section class="bg-white rounded-2xl p-3 border border-slate-200 shadow-sm space-y-2.5">
+      <div class="relative">
+        <input id="searchInput" type="search" placeholder="ابحث برقم الهاتف، اسم الزبون، رقم الشريحة، الوكالة، أو الملاحظات..."
+          class="w-full pr-9 pl-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition" />
+        <span class="absolute right-3 top-2.5 text-slate-400 text-base pointer-events-none">🔍</span>
+      </div>
+
+      <!-- Status Filter Pills -->
+      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5" id="statusTabs">
+        <button type="button" data-status="الكل" class="status-tab shrink-0 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-900 text-white">الكل (<span id="cntAll">0</span>)</button>
+        <button type="button" data-status="مفعل" class="status-tab shrink-0 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">مفعل (<span id="cntActive">0</span>)</button>
+        <button type="button" data-status="معلق" class="status-tab shrink-0 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">معلق (<span id="cntSuspended">0</span>)</button>
+        <button type="button" data-status="مفصول" class="status-tab shrink-0 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700">مفصول (<span id="cntDisc">0</span>)</button>
+        <button type="button" data-status="تنبيهات" class="status-tab shrink-0 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">تنبيهات (<span id="cntAlerts">0</span>)</button>
+        <button type="button" data-status="ديون" class="status-tab shrink-0 px-3 py-1.5 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200">عليه دين (<span id="cntDebt">0</span>)</button>
+      </div>
+
+      <!-- Secondary Filters -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <select id="filterCarrier" class="w-full px-2.5 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          <option value="الكل">كل الشركات</option>
+        </select>
+        <select id="filterAgency" class="w-full px-2.5 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          <option value="الكل">كل الوكالات</option>
+        </select>
+        <select id="filterSimType" class="w-full px-2.5 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          <option value="الكل">كل الشرائح (eSIM / عادي)</option>
+          <option value="eSIM">eSIM فقط</option>
+          <option value="SIM بلاستيك">SIM بلاستيك فقط</option>
+        </select>
+        <select id="sortSelect" class="w-full px-2.5 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+          <option value="nearest">الأقرب موعداً أولاً</option>
+          <option value="latest">الأبعد موعداً أولاً</option>
+          <option value="debt">الأعلى ديناً أولاً</option>
+          <option value="price">الأعلى سعراً أولاً</option>
+          <option value="name">حسب اسم الزبون</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Results Count -->
+    <div class="flex items-center justify-between px-1 text-xs text-slate-500 font-semibold">
+      <span id="resultsInfo">عرض 0 اشتراك</span>
+      <button id="btnResetFilters" type="button" class="text-emerald-600 hover:underline hidden">إعادة ضبط الفلاتر</button>
+    </div>
+
+    <!-- Subscriptions List -->
+    <section id="subsList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></section>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden bg-white rounded-2xl p-8 text-center border border-slate-200">
+      <div class="text-3xl mb-2">📭</div>
+      <h3 class="font-bold text-slate-800">لا توجد نتائج مطابقة</h3>
+      <p class="text-xs text-slate-500 mt-1">جرب تغيير كلمات البحث أو إزالة الفلاتر.</p>
+    </div>
+  </main>
+
+  <!-- Add/Edit Modal -->
+  <div id="editModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-2xl max-h-[92vh] flex flex-col shadow-2xl">
+      <div class="px-4 py-3.5 border-b border-slate-200 flex items-center justify-between">
+        <h2 id="modalTitle" class="text-base font-extrabold text-slate-900">تعديل الاشتراك</h2>
+        <button id="btnCloseModal" type="button" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold">✕</button>
+      </div>
+      <form id="subForm" class="p-4 overflow-y-auto space-y-3 text-sm">
+        <input type="hidden" id="fieldId" />
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">رقم الهاتف *</label>
+            <input id="fieldPhone" type="text" required class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl ltr-num text-right focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">اسم الزبون</label>
+            <input id="fieldName" type="text" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">نوع الشريحة</label>
+            <select id="fieldSimType" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="SIM بلاستيك">SIM بلاستيك</option>
+              <option value="eSIM">eSIM (إلكترونية)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">الحالة</label>
+            <select id="fieldStatus" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="مفعل">مفعل</option>
+              <option value="معلق">معلق</option>
+              <option value="مفصول">مفصول</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">شركة الاتصالات</label>
+            <input id="fieldCarrier" type="text" list="carrierSuggestions" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            <datalist id="carrierSuggestions">
+              <option value="سلكوم"></option>
+              <option value="بلفون"></option>
+              <option value="هوت"></option>
+              <option value="بارتنر"></option>
+              <option value="رامي ليفي"></option>
+              <option value="019"></option>
+              <option value="وي"></option>
+              <option value="الوها"></option>
+            </datalist>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">وكالة الاشتراك</label>
+            <input id="fieldAgency" type="text" list="agencySuggestions" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            <datalist id="agencySuggestions">
+              <option value="كويك لاين"></option>
+              <option value="ليان"></option>
+              <option value="مسار (EoT4R)"></option>
+              <option value="توب اب (ART)"></option>
+              <option value="سكاي"></option>
+              <option value="ارين"></option>
+              <option value="الوها"></option>
+            </datalist>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-xs font-bold text-emerald-700 mb-1">سعر التجديد للزبون (₪)</label>
+            <input id="fieldCustomerPrice" type="number" min="0" step="1" class="w-full px-2.5 py-2 bg-emerald-50/50 border border-emerald-200 rounded-xl ltr-num text-right font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">سعر الوكالة (₪)</label>
+            <input id="fieldAgencyPrice" type="number" min="0" step="1" class="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-xl ltr-num text-right font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-rose-700 mb-1">قيمة الدين (₪)</label>
+            <input id="fieldDebt" type="number" min="0" step="1" class="w-full px-2.5 py-2 bg-rose-50/50 border border-rose-200 rounded-xl ltr-num text-right font-bold focus:outline-none focus:ring-2 focus:ring-rose-500" />
+          </div>
+        </div>
+
+        <label class="flex items-center gap-2 text-xs font-bold text-rose-700 bg-rose-50 px-3 py-2 rounded-xl border border-rose-200 cursor-pointer">
+          <input id="fieldHasDebt" type="checkbox" class="w-4 h-4 accent-rose-600 rounded" />
+          <span>الزبون عليه دين (حتى لو المبلغ 0 أو غير محدد بعد)</span>
+        </label>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">تاريخ الفصل / الانتهاء</label>
+            <input id="fieldEndDate" type="date" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl ltr-num focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">التذكير</label>
+            <select id="fieldReminder" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <option value="تذكير قبل يوم">تذكير قبل يوم</option>
+              <option value="تذكير قبل يومين">تذكير قبل يومين</option>
+              <option value="تذكير يوم الموعد">تذكير يوم الموعد</option>
+              <option value="بدون تذكير">بدون تذكير</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">رقم الشريحة (ICCID)</label>
+            <input id="fieldSim" type="text" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl ltr-num text-right focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">الحزمة / الباقة</label>
+            <input id="fieldPackage" type="text" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">ملاحظات</label>
+          <textarea id="fieldNotes" rows="2" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+        </div>
+
+        <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-200">
+          <button id="btnDeleteSub" type="button" class="px-3 py-2 rounded-xl bg-rose-100 text-rose-700 hover:bg-rose-200 text-xs font-bold hidden">حذف الاشتراك</button>
+          <div class="flex items-center gap-2 mr-auto">
+            <button id="btnCancelModal" type="button" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold">إلغاء</button>
+            <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow">حفظ التغييرات</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Data Export / Import Modal -->
+  <div id="dataModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-2xl p-4 shadow-2xl space-y-3">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
+        <h2 class="text-base font-extrabold text-slate-900">نسخ احتياطي واستيراد البيانات</h2>
+        <button id="btnCloseDataModal" type="button" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold">✕</button>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <button id="btnDownloadJson" type="button" class="py-2.5 px-3 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800">⬇️ تحميل JSON</button>
+        <button id="btnDownloadCsv" type="button" class="py-2.5 px-3 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700">📊 تحميل CSV (Excel)</button>
+      </div>
+      <div class="border-t border-slate-200 pt-2.5 space-y-2">
+        <label class="block text-xs font-bold text-slate-700">استيراد ملف JSON احتياطي:</label>
+        <input id="importFileInput" type="file" accept=".json" class="w-full text-xs text-slate-600 file:ml-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200" />
+      </div>
+      <div class="border-t border-slate-200 pt-2.5 flex justify-between items-center">
+        <span class="text-[11px] text-slate-500">استعادة القائمة الأصلية المدمجة</span>
+        <button id="btnResetDefault" type="button" class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold border border-rose-200">إعادة ضبط</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 hidden bg-slate-900 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-lg transition-opacity"></div>
+
+  <script>
+    const INITIAL_SUBSCRIPTIONS = [{"phone": "0528181174", "name": "معتصم قديح", "sim": "899720201473124525", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفعل", "endDate": "2026-11-22", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا", "source": "القائمة الرئيسية", "id": 1}, {"phone": "0529543309", "name": "بسيوني جديد", "sim": "899720208497540875", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفعل", "endDate": "2026-11-22", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا", "source": "القائمة الرئيسية", "id": 2}, {"phone": "0507253883", "name": "الشنباري", "sim": "8997250000093336523", "carrier": "بلفون", "agency": "سكاي", "status": "مفعل", "endDate": "2026-11-23", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL 350 جيجا بيلفون جديد رزمة عرض شهرية", "source": "القائمة الرئيسية", "id": 3}, {"phone": "0524426080", "name": "رامي ابو ريدة", "sim": "899720201990202820", "carrier": "سلكوم", "agency": "كويك", "status": "مفعل", "endDate": "2026-11-23", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا", "source": "القائمة الرئيسية", "id": 4}, {"phone": "0525868306", "name": "الشامي .", "sim": "899720204501839254", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفعل", "endDate": "2026-11-23", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 100 جبجا +خدمة 5G \"عرض 3 اشهر \"", "source": "القائمة الرئيسية", "id": 5}, {"phone": "0525123773", "name": "احمد يوسف", "sim": "", "carrier": "سلكوم", "agency": "ارين", "status": "مفعل", "endDate": "2026-11-24", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 6}, {"phone": "0525123773", "name": "احمد يوسف", "sim": "", "carrier": "سلكوم", "agency": "ارين", "status": "مفعل", "endDate": "2026-11-24", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 7}, {"phone": "0529935892", "name": "فريد", "sim": "899720208494329728", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-11-24", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية", "source": "القائمة الرئيسية", "id": 8}, {"phone": "0533986548", "name": "علاء ابو خاطر", "sim": "899", "carrier": "هوت", "agency": "مسار", "status": "مفعل", "endDate": "2026-11-25", "reminder": "تذكير يوم الموعد", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 9}, {"phone": "0533986548", "name": "علاء من طرف", "sim": "899", "carrier": "هوت", "agency": "مسار", "status": "مفعل", "endDate": "2026-11-25", "reminder": "تذكير قبل يوم", "notes": "تجميد ونقله لزبون اخر في تاريخ 24/11", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 10}, {"phone": "0544098533", "name": "محمد ابو سعاده", "sim": "89972010625030880872", "carrier": "بارتنر", "agency": "ليان", "status": "مفعل", "endDate": "2026-11-25", "reminder": "تذكير قبل يومين", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "حزمة 300 جيجا 2026 (حزمه عاديه)", "source": "القائمة الرئيسية", "id": 11}, {"phone": "0559526470", "name": "مم Mot", "sim": "89972191200057507583", "carrier": "019", "agency": "كويك لاين", "status": "مفعل", "endDate": "2026-11-25", "reminder": "تذكير قبل يوم", "notes": "واصل 50 شيكل باقي 10 شيكل", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 10, "hasDebt": true, "package": "019 موبايل250 جيجا + خدمة 5G", "source": "القائمة الرئيسية", "id": 12}, {"phone": "0515973632", "name": "علاء ويكوم", "sim": "0000", "carrier": "وي", "agency": "الوها", "status": "مفعل", "endDate": "2026-11-27", "reminder": "تذكير قبل يوم", "notes": "تجميد يوم 27/11 وانتظار الزب ن أن يدفع", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 13}, {"phone": "0533934159", "name": "محمد ثائر ابو لديه", "sim": "8997207105038335383", "carrier": "هوت", "agency": "مسار", "status": "مفعل", "endDate": "2026-11-27", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 14}, {"phone": "0525149544", "name": "عادل البريم", "sim": "899720201505311603", "carrier": "سلكوم", "agency": "سكاي", "status": "مفعل", "endDate": "2026-11-28", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية مدخل سكاي", "source": "القائمة الرئيسية", "id": 15}, {"phone": "0525474869", "name": "وائل ضبه", "sim": "899720204500788718", "carrier": "سلكوم", "agency": "سكاي", "status": "مفعل", "endDate": "2026-11-28", "reminder": "تذكير قبل يوم", "notes": "عليه ديون", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": true, "package": "حملة رمضان 400 جيجا سلكوم", "source": "القائمة الرئيسية", "id": 16}, {"phone": "0527863702", "name": "نرمين", "sim": "899720200527863702", "carrier": "سلكوم", "agency": "كويك", "status": "مفعل", "endDate": "2026-11-28", "reminder": "تذكير قبل يوم", "notes": "عليه ديون", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": true, "package": "سلكوم 400 جبجا", "source": "القائمة الرئيسية", "id": 17}, {"phone": "0528098705", "name": "كمال البريم", "sim": "0528098705", "carrier": "سلكوم", "agency": "ارين", "status": "مفعل", "endDate": "2026-11-28", "reminder": "تذكير قبل يوم", "notes": "ارين تجميد", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 18}, {"phone": "0553346967", "name": "احمد ناديا", "sim": "8997212330000462771", "carrier": "الوها", "agency": "الوها", "status": "مفعل", "endDate": "2026-11-28", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 19}, {"phone": "0535835271", "name": "فهمي", "sim": "8997207105033610954", "carrier": "هوت", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-11-29", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "هوت 150 جيجا جيل خامس AL", "source": "القائمة الرئيسية", "id": 20}, {"phone": "0543593581", "name": "موسي ابو عوض", "sim": "89972010823030720855", "carrier": "بارتنر", "agency": "ليان", "status": "مفعل", "endDate": "2026-11-30", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "بارتنر 500 جيجا 2025 (حزمه عاديه)", "source": "القائمة الرئيسية", "id": 21}, {"phone": "0555037031", "name": "الشنباري", "sim": "8997250400055182347", "carrier": "بلفون", "agency": "سكاي", "status": "مفعل", "endDate": "2026-11-30", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL 350 جيجا بيلفون جديد رزمة عرض شهرية", "source": "القائمة الرئيسية", "id": 22}, {"phone": "0528369965", "name": "غزاوي", "sim": "899720204500789625", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-01", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية", "source": "القائمة الرئيسية", "id": 23}, {"phone": "0553398661", "name": "ابو ناديا", "sim": "0000", "carrier": "الوها", "agency": "الوها", "status": "مفعل", "endDate": "2026-12-01", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 24}, {"phone": "0555037415", "name": "وائل ضيه", "sim": "899720204496740855", "carrier": "سلكوم", "agency": "سكاي", "status": "مفعل", "endDate": "2026-12-01", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية", "source": "القائمة الرئيسية", "id": 25}, {"phone": "0523596700", "name": "عرفات ابو لبده", "sim": "899720201320914748", "carrier": "سلكوم", "agency": "ارين", "status": "مفعل", "endDate": "2026-12-04", "reminder": "تذكير قبل يوم", "notes": "باقي له شهر تفعيل علي ارين رقم سابق أو تفعيل بكويك لاين", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 26}, {"phone": "0526516374", "name": "انس ناصر", "sim": "899720201493752420", "carrier": "سلكوم", "agency": "كويك", "status": "مفعل", "endDate": "2026-12-04", "reminder": "تذكير قبل يوم", "notes": "فصل يوم 4/12/2026", "simType": "eSIM", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا \"عرض 3 اشهر \" 09-2026", "source": "القائمة الرئيسية", "id": 27}, {"phone": "0554681687", "name": "بدون اسم", "sim": "0554681687", "carrier": "رامي ليفي", "agency": "الوها", "status": "مفعل", "endDate": "2026-12-04", "reminder": "تذكير قبل يوم", "notes": "الخطوط مفعل ثلاث شهور تجميد الخط بتاريخ 24/12 وانتظار الزبون لدفع أو بيعه لشخص آخر", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 28}, {"phone": "0524209965", "name": "527497823", "sim": "899720201491243430", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-05", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية", "source": "القائمة الرئيسية", "id": 29}, {"phone": "0555042089", "name": "00", "sim": "899720203501189983", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-06", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية", "source": "القائمة الرئيسية", "id": 30}, {"phone": "0533443691", "name": "صابرين ام حمادة 5026125275", "sim": "8997207105026125275", "carrier": "هوت", "agency": "كويك لاين", "status": "مفعل", "endDate": "2026-12-08", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "هوت موبايل 45 جيجا", "source": "القائمة الرئيسية", "id": 31}, {"phone": "0502754568", "name": "مدهون", "sim": "8997250408007194104", "carrier": "بلفون", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-09", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL 500 جيجا بيلفون جديد تدعم الجيل الخامس", "source": "القائمة الرئيسية", "id": 32}, {"phone": "0555042693", "name": "عاطف", "sim": "899720204496917305", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-13", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية", "source": "القائمة الرئيسية", "id": 33}, {"phone": "0525706940", "name": "00", "sim": "899720206950382397", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-16", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية", "source": "القائمة الرئيسية", "id": 34}, {"phone": "0526917753", "name": "ضيه عرض", "sim": "899720204501008009", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-16", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية", "source": "القائمة الرئيسية", "id": 35}, {"phone": "0529115892", "name": "عادل البريم", "sim": "899720203501190189", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفعل", "endDate": "2026-12-17", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا +خدمة 5G \"عرض 3 اشهر \"", "source": "القائمة الرئيسية", "id": 36}, {"phone": "0524562763", "name": "بلال خاطر", "sim": "1500329980", "carrier": "سلكوم", "agency": "سكاي", "status": "مفعل", "endDate": "2026-12-18", "reminder": "تذكير قبل يوم", "notes": "عليه ديون", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": true, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية مدخل سكاي", "source": "القائمة الرئيسية", "id": 37}, {"phone": "0524890123", "name": "نرمين", "sim": "1495041491", "carrier": "سلكوم", "agency": "سكاي", "status": "مفعل", "endDate": "2026-12-18", "reminder": "تذكير قبل يوم", "notes": "نفعل لمدة شهر فقط تجميد لأنه فعال ثلاث شهور", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية مدخل سكاي", "source": "القائمة الرئيسية", "id": 38}, {"phone": "0528813680", "name": "ابو ريده", "sim": "899720201470429109", "carrier": "سلكوم", "agency": "سكاي", "status": "مفعل", "endDate": "2026-12-18", "reminder": "تذكير قبل يوم", "notes": "عليه ديون", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": true, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية مدخل سكاي", "source": "القائمة الرئيسية", "id": 39}, {"phone": "0502754480", "name": "قديح 2", "sim": "8997250200087580835", "carrier": "بلفون", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-19", "reminder": "تذكير قبل يوم", "notes": "تبديل سم", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL 500 جيجا بيلفون جديد تدعم الجيل الخامس", "source": "القائمة الرئيسية", "id": 40}, {"phone": "0524434949", "name": "mona", "sim": "899720204501009221", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-19", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية", "source": "القائمة الرئيسية", "id": 41}, {"phone": "0537193517", "name": "فوزي ابو عيادة", "sim": "8997207105038330830", "carrier": "هوت", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-19", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL 200GB و 100GB إضافية رزمة عرض شهرية.", "source": "القائمة الرئيسية", "id": 42}, {"phone": "0503273621", "name": "مجد قديح", "sim": "8997250200087584845", "carrier": "بلفون", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-20", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL 500 جيجا بيلفون جديد تدعم الجيل الخامس", "source": "القائمة الرئيسية", "id": 43}, {"phone": "0555041496", "name": "555041747", "sim": "899720203504524160", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-21", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية", "source": "القائمة الرئيسية", "id": 44}, {"phone": "0554673824", "name": "قديح", "sim": "8997250003007586100", "carrier": "Ramilevy", "agency": "توب اب", "status": "مفعل", "endDate": "2026-12-22", "reminder": "تذكير قبل يوم", "notes": "تخويل ايسم قبل الموعد بيوم تفعيل توب اب وانتظار الزبون قديح بتفعيل ابو احمد", "simType": "eSIM", "agencyPrice": 60, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 45}, {"phone": "0526782353", "name": "ابو سيت", "sim": "899720201321625194", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-23", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية", "source": "القائمة الرئيسية", "id": 46}, {"phone": "0502580721", "name": "ايه بسام قديح", "sim": "8997250200087219830", "carrier": "بلفون", "agency": "توب اب (ART)", "status": "مفعل", "endDate": "2026-12-24", "reminder": "تذكير قبل يوم", "notes": "تحويل ايسم قبل موعد الفصل وانتظار التفعيل من قبل الزبون ابو احمد قديح", "simType": "eSIM", "agencyPrice": 65, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 47}, {"phone": "0504578129", "name": "ام أحمد قديح", "sim": "8997250400047527807", "carrier": "بلفون", "agency": "توب اب", "status": "مفعل", "endDate": "2026-12-28", "reminder": "تذكير قبل يوم", "notes": "تبديل سيم أو تحويله ايسم ام أحمد قديح وانتظار الزبون", "simType": "eSIM", "agencyPrice": 65, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 48}, {"phone": "0554673664", "name": "بدون اسم", "sim": "8997250003016792913", "carrier": "تجميد صباحا قبل موعد الفصل بيوم وانتظار الزبون في الدفع وتحويله ايسم وتنظيف ايسم", "agency": "توب اب (ART)", "status": "مفعل", "endDate": "2026-12-28", "reminder": "تذكير قبل يومين", "notes": "", "simType": "eSIM", "agencyPrice": 60, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 49}, {"phone": "0515316032", "name": "د. اسامه", "sim": "89972096000018599489", "carrier": "وي", "agency": "الوها", "status": "مفعل", "endDate": "2026-12-31", "reminder": "تذكير قبل يوم", "notes": "تخويل ايسم وتنظيف وانتظار الدكتور اسامه لتفعيل", "simType": "eSIM", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 50}, {"phone": "0537931607", "name": "محمد سعادة", "sim": "105047077547", "carrier": "هوت", "agency": "ليان", "status": "مفعل", "endDate": "2027-01-01", "reminder": "تذكير قبل يوم", "notes": "باقي 40 شيكل", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 40, "hasDebt": true, "package": "حزمة 200 جيجا 2026 (عادي)", "source": "القائمة الرئيسية", "id": 51}, {"phone": "0507348221", "name": "ابو لبده 2", "sim": "8997250400047527468", "carrier": "بلفون", "agency": "سكاي", "status": "مفعل", "endDate": "2027-01-04", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL 500 جيجا بيلفون جديد تدعم الجيل الخامس", "source": "القائمة الرئيسية", "id": 52}, {"phone": "0526670324", "name": "عنقود الحياة", "sim": "899720201908908930", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفعل", "endDate": "2027-01-04", "reminder": "تذكير قبل يوم", "notes": "", "simType": "eSIM", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا \"عرض 3 اشهر \" 09-2026", "source": "القائمة الرئيسية", "id": 53}, {"phone": "0526548242", "name": "لؤي قديح", "sim": "899720208472326019", "carrier": "سلكوم", "agency": "كويك", "status": "مفعل", "endDate": "2027-01-07", "reminder": "تذكير قبل يوم", "notes": "", "simType": "eSIM", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا \"عرض 3 اشهر \" 09-2026", "source": "القائمة الرئيسية", "id": 54}, {"phone": "0554671678", "name": "ابو قيس البريم", "sim": "8997250003016774291", "carrier": "رامي ليفي", "agency": "توب اب", "status": "مفعل", "endDate": "2027-01-07", "reminder": "تذكير قبل يومين", "notes": "تجميد وانتظار الزبون اي يدفع وبعد ذلك تفعيل", "simType": "SIM بلاستيك", "agencyPrice": 35, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 55}, {"phone": "0554675648", "name": "ابو قديح", "sim": "8997250003018916924", "carrier": "رامي ليفي", "agency": "توب اب", "status": "مفعل", "endDate": "2027-01-07", "reminder": "تذكير قبل يوم", "notes": "تحويل ايسم وانتظار الزبون بتفعيل", "simType": "eSIM", "agencyPrice": 35, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 56}, {"phone": "0526548641", "name": "فادي ابو الروك", "sim": "899720206471593720", "carrier": "سلكوم", "agency": "كويك", "status": "مفعل", "endDate": "2027-01-09", "reminder": "تذكير قبل يوم", "notes": "", "simType": "eSIM", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا \"عرض 3 اشهر \" 09-2026", "source": "القائمة الرئيسية", "id": 57}, {"phone": "0554671577", "name": "رقمي", "sim": "8997250003018918581", "carrier": "رامي ليفي", "agency": "توب اب", "status": "مفعل", "endDate": "2027-01-09", "reminder": "تذكير قبل يوم", "notes": "تحويل ايسم", "simType": "eSIM", "agencyPrice": 35, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 58}, {"phone": "0526539048", "name": "زبون من طرف بلال خاطر", "sim": "899720204501033882", "carrier": "سلكوم", "agency": "كويك", "status": "مفعل", "endDate": "2027-01-11", "reminder": "تذكير قبل يوم", "notes": "", "simType": "eSIM", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا \"عرض 3 اشهر \" 09-2026", "source": "القائمة الرئيسية", "id": 59}, {"phone": "0526712657", "name": "علاء عدنان", "sim": "899720203501189553", "carrier": "سلكوم", "agency": "كويك", "status": "مفعل", "endDate": "2027-01-12", "reminder": "تذكير قبل يوم", "notes": "علاء عدنان", "simType": "eSIM", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا \"عرض 3 اشهر \" 09-2026", "source": "القائمة الرئيسية", "id": 60}, {"phone": "0509918035", "name": "بدون اسم", "sim": "8997250400047527708", "carrier": "بلفون", "agency": "توب اب", "status": "مفعل", "endDate": "2027-01-16", "reminder": "تذكير قبل يوم", "notes": "تبديل سيم", "simType": "SIM بلاستيك", "agencyPrice": 75, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 61}, {"phone": "0526837712", "name": "ابو حلميه", "sim": "899720208497002249", "carrier": "سلكوم", "agency": "كويك", "status": "مفعل", "endDate": "2027-01-16", "reminder": "تذكير قبل يوم", "notes": "", "simType": "eSIM", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا \"عرض 3 اشهر \" 09-2026", "source": "القائمة الرئيسية", "id": 62}, {"phone": "0526873162", "name": "وائل ضيه", "sim": "899720201322411370", "carrier": "سلكوم", "agency": "كويك", "status": "مفعل", "endDate": "2027-01-17", "reminder": "تذكير قبل يوم", "notes": "", "simType": "eSIM", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا \"عرض 3 اشهر \" 09-2026", "source": "القائمة الرئيسية", "id": 63}, {"phone": "0554687416", "name": "النجار", "sim": "8997250003018920280", "carrier": "رامي ليفي", "agency": "توب اب", "status": "مفعل", "endDate": "2027-01-17", "reminder": "تذكير قبل يوم", "notes": "ابلاغ الزبون بالتجديد", "simType": "SIM بلاستيك", "agencyPrice": 35, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 64}, {"phone": "0554687534", "name": "علاء عدنان", "sim": "8997250003018916528", "carrier": "رامي ليفي", "agency": "توب اب", "status": "مفعل", "endDate": "2027-01-24", "reminder": "تذكير قبل يوم", "notes": "تبديل سيم وتنظيف", "simType": "eSIM", "agencyPrice": 35, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 65}, {"phone": "0554687258", "name": "اخلاص ابو لبده", "sim": "8997250003018919928", "carrier": "رامي ليفي", "agency": "توب اب", "status": "مفعل", "endDate": "2027-01-25", "reminder": "تذكير قبل يوم", "notes": "تبديل ايسم أو ع سيم عادي", "simType": "eSIM", "agencyPrice": 35, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 66}, {"phone": "0529695916", "name": "ام الحسن الدرديسي", "sim": "899720203501189496", "carrier": "سلكوم", "agency": "ارين", "status": "مفعل", "endDate": "2027-01-26", "reminder": "تذكير قبل يوم", "notes": "تبديل سيم وتجميد بتاريخ 26/1", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 67}, {"phone": "0524770685", "name": "جرغون", "sim": "899720201321613869", "carrier": "سلكوم", "agency": "توب اب", "status": "مفعل", "endDate": "2027-01-30", "reminder": "تذكير قبل يوم", "notes": "تبديل سيم لهاد التاريخ وتنظيف جرغون", "simType": "eSIM", "agencyPrice": 70, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 68}, {"phone": "0528682394", "name": "ابو حليمه", "sim": "899720201321840322", "carrier": "سلكوم", "agency": "توب اب", "status": "مفعل", "endDate": "2027-01-30", "reminder": "تذكير قبل يوم", "notes": "تبديل سيم وتنظيف", "simType": "eSIM", "agencyPrice": 70, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 69}, {"phone": "0527448816", "name": "علاءعدنان", "sim": "899720201321614909", "carrier": "سلكوم", "agency": "توب اب", "status": "مفعل", "endDate": "2027-01-31", "reminder": "تذكير قبل يوم", "notes": "تبديل سيم وتنظيف", "simType": "eSIM", "agencyPrice": 70, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 70}, {"phone": "0533623997", "name": "رقمي هوت", "sim": "8997207105038330327", "carrier": "هوت", "agency": "توب اب", "status": "مفعل", "endDate": "", "reminder": "تذكير قبل يوم", "notes": "", "simType": "eSIM", "agencyPrice": 65, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 71}, {"phone": "0543628280", "name": "0543628280 درويدا", "sim": "899720201321614107", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفصول", "endDate": "2026-12-18", "reminder": "تذكير قبل يوم", "notes": "عليه ديون", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": true, "package": "سلكوم 400 جبجا", "source": "القائمة الرئيسية", "id": 72}, {"phone": "0529748721", "name": "محمد ابو عواد", "sim": "899720204500786944", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفصول", "endDate": "2026-11-19", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 100 جبجا +خدمة 5G \"عرض 3 اشهر \"", "source": "القائمة الرئيسية", "id": 73}, {"phone": "0535457834", "name": "المهندس", "sim": "8997207105036610282", "carrier": "هوت", "agency": "سكاي", "status": "مفصول", "endDate": "2026-11-19", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "هوت 150 جيجا جيل خامس AL", "source": "القائمة الرئيسية", "id": 74}, {"phone": "0523215654", "name": "Jamaa", "sim": "899720203501189918", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-11-18", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 75}, {"phone": "0529758137", "name": "مازن جديد", "sim": "899720201470429109", "carrier": "سلكوم", "agency": "سكاي", "status": "مفصول", "endDate": "2026-11-18", "reminder": "تذكير قبل يوم", "notes": "عليه ديون 70 شيكل", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 70, "hasDebt": true, "package": "", "source": "القائمة الرئيسية", "id": 76}, {"phone": "0555608325", "name": "رامي", "sim": "8997250003016774291", "carrier": "رامي ليفي", "agency": "ليان", "status": "مفصول", "endDate": "2026-11-17", "reminder": "تذكير قبل يوم", "notes": "+972 59-783-4608", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "حزمة 200 جيجا 2027 (حزمه عاديه)", "source": "القائمة الرئيسية", "id": 77}, {"phone": "0502567518", "name": "ابو عدي", "sim": "8997250400053900260", "carrier": "بلفون", "agency": "سكاي", "status": "مفصول", "endDate": "2026-11-15", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 78}, {"phone": "0555692290", "name": "6", "sim": "8997209660001621913", "carrier": "رامي ليفي", "agency": "", "status": "مفصول", "endDate": "2026-11-12", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 79}, {"phone": "0502724173", "name": "شروق بيلفون", "sim": "8997250200087219830", "carrier": "بلفون", "agency": "سكاي", "status": "مفصول", "endDate": "2026-11-06", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL 350 جيجا بيلفون جديد رزمة عرض شهرية", "source": "القائمة الرئيسية", "id": 80}, {"phone": "0520", "name": "احمد دلول قدبم", "sim": "899720201495242016", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-11-06", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 81}, {"phone": "0529758922", "name": "h", "sim": "899720208494982120", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفصول", "endDate": "2026-11-05", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية", "source": "القائمة الرئيسية", "id": 82}, {"phone": "0528670531", "name": "جرغون قديم", "sim": "899720201321613869", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-11-03", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 83}, {"phone": "0526808623", "name": "واصل الحبل", "sim": "899720204995108174", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفصول", "endDate": "2026-11-02", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا +خدمة 5G \"عرض 3 اشهر \"", "source": "القائمة الرئيسية", "id": 84}, {"phone": "0509398445", "name": "فريد", "sim": "899720201321842559", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفصول", "endDate": "2026-11-01", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جيجا AL", "source": "القائمة الرئيسية", "id": 85}, {"phone": "0524728679", "name": "ابو حليمه جديد", "sim": "899720201321840322", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-11-01", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 86}, {"phone": "0548374631", "name": "بدون اسم", "sim": "89972010221031127933", "carrier": "بارتنر", "agency": "", "status": "مفصول", "endDate": "2026-11-01", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 87}, {"phone": "0524747391", "name": "ناصر", "sim": "89972004502000690", "carrier": "سلكوم", "agency": "Areen", "status": "مفصول", "endDate": "2026-10-28", "reminder": "تذكير قبل يوم", "notes": "باقي له شهران الحساب تفعيل اشتراك لشهرين كويك", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 88}, {"phone": "0525148241", "name": "6493825431 ضبه", "sim": "899720206493825431", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-10-27", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 89}, {"phone": "0533481425", "name": "سكيك", "sim": "0533481425", "carrier": "هوت", "agency": "ليان", "status": "مفصول", "endDate": "2026-10-27", "reminder": "تذكير قبل يوم", "notes": "فصل ع ليان ايسم وإبلاغ الزبون قبل الفصل لتحويل المبلغ", "simType": "eSIM", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 90}, {"phone": "0525114815", "name": "قديح ثلاث", "sim": "899720204502164553", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفصول", "endDate": "2026-10-26", "reminder": "تذكير قبل يوم", "notes": "", "simType": "eSIM", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا +خدمة 5G \"عرض 3 اشهر \" 06-2026", "source": "القائمة الرئيسية", "id": 91}, {"phone": "0528597844", "name": "528538411", "sim": "899720204994436618", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-10-26", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 92}, {"phone": "0524843159", "name": "محمد سعادة", "sim": "899720204496812977", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-10-25", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 93}, {"phone": "0524975245", "name": "3501189835 بلال عرض", "sim": "899720203501189835", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-10-25", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 94}, {"phone": "0502196614", "name": "نت", "sim": "8997250000020898611", "carrier": "بلفون", "agency": "", "status": "مفصول", "endDate": "2026-10-24", "reminder": "تذكير قبل يوم", "notes": "تجميد وإبلاغ حسام الرقب بدفع وبعد ذلك شحن لمدة شهر", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 95}, {"phone": "0524572836", "name": "6492990160 6492990160", "sim": "899720206492990160", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-10-24", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 96}, {"phone": "0523094735", "name": "حسن خاطر", "sim": "899720204500190220", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-10-21", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 97}, {"phone": "0523403568", "name": "Ahmad Azazi", "sim": "899720203503588794", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفصول", "endDate": "2026-10-21", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا +خدمة 5G \"عرض 3 اشهر \" 06-2026", "source": "القائمة الرئيسية", "id": 98}, {"phone": "0525341137", "name": "ا ى", "sim": "899720201321614909", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-10-21", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 99}, {"phone": "0503519418", "name": "حسونه", "sim": "8997250400053995138", "carrier": "بلفون", "agency": "مسار (EoT4R)", "status": "مفصول", "endDate": "2026-10-20", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL 350 جيجا بيلفون جديد رزمة عرض شهرية", "source": "القائمة الرئيسية", "id": 100}, {"phone": "0523416028", "name": "الغلبان جديد شهر /7", "sim": "899720208497654940", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-10-20", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 101}, {"phone": "0523023674", "name": "8497711096 8497711096", "sim": "899720208497711096", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-10-18", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 102}, {"phone": "0524752834", "name": "1322411370 ضبه", "sim": "89972", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-10-18", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 103}, {"phone": "0528820916", "name": "65", "sim": "899720201493903437", "carrier": "سلكوم", "agency": "سكاي", "status": "مفصول", "endDate": "2026-10-18", "reminder": "تذكير قبل يوم", "notes": "تم الغائه", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 104}, {"phone": "0533446828", "name": "Esim Esim", "sim": "8997207100533446828", "carrier": "هوت", "agency": "كويك", "status": "مفصول", "endDate": "2026-10-18", "reminder": "تذكير قبل يوم", "notes": "", "simType": "eSIM", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 105}, {"phone": "0542113928", "name": "تدريس", "sim": "89972010915031422471", "carrier": "بارتنر", "agency": "ليان", "status": "مفصول", "endDate": "2026-10-18", "reminder": "تذكير قبل يوم", "notes": "عليه فلوس دين", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": true, "package": "", "source": "القائمة الرئيسية", "id": 106}, {"phone": "0524392489", "name": "89972020 8497002249", "sim": "899720208497002249", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-10-17", "reminder": "تذكير قبل يوم", "notes": "تم الغائه", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 107}, {"phone": "0535673845", "name": "ضبة هوت", "sim": "8997207105106265389", "carrier": "هوت", "agency": "كويك لاين", "status": "مفصول", "endDate": "2026-10-17", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "هوت موبايل 100 جيجا", "source": "القائمة الرئيسية", "id": 108}, {"phone": "0534365196", "name": "علاء ابوريده", "sim": "8997207105037128888", "carrier": "هوت", "agency": "سكاي", "status": "مفصول", "endDate": "2026-10-15", "reminder": "تذكير قبل يوم", "notes": "فصل الشريحه مدة التفعيل. اسبوعان فقط", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 109}, {"phone": "0524386903", "name": "شمالي جهاد", "sim": "899720203501190502", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-10-14", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 110}, {"phone": "0555607934", "name": "gu علاء", "sim": "", "carrier": "رامي ليفي", "agency": "", "status": "مفصول", "endDate": "2026-10-13", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 111}, {"phone": "0507194570", "name": "رقمي العزازي", "sim": "8997250200087215259", "carrier": "بلفون", "agency": "", "status": "مفصول", "endDate": "2026-10-12", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 112}, {"phone": "0526158368", "name": "526158368", "sim": "899720201493752420", "carrier": "سلكوم", "agency": "", "status": "مفصول", "endDate": "2026-10-12", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 113}, {"phone": "05000000000", "name": "ابو مهند", "sim": "8997250000053417677", "carrier": "سيم برزيل بدون رقم خاصة في ابو مهند", "agency": "", "status": "مفصول", "endDate": "", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "", "source": "القائمة الرئيسية", "id": 114}, {"phone": "0506729523", "name": "ابو علي", "sim": "8997250400047527559", "carrier": "بلفون", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2027-02-16", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL 350 جيجا بيلفون جديد رزمة عرض شهرية", "source": "EoT4R", "id": 115}, {"phone": "0507295490", "name": "اا", "sim": "8997250200043153891", "carrier": "بلفون", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-11-19", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL 500 جيجا بيلفون جديد تدعم الجيل الخامس", "source": "EoT4R", "id": 116}, {"phone": "0524726879", "name": "علاء نصف شهر", "sim": "899720203501189835", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-11-27", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية مدخل سكاي", "source": "EoT4R", "id": 117}, {"phone": "0525919828", "name": "بدون اسم", "sim": "899720204501223640", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-14", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية مدخل سكاي", "source": "EoT4R", "id": 118}, {"phone": "0527453716", "name": "ابراهيم ابو لبده", "sim": "899720201908909094", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-09", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية مدخل سكاي", "source": "EoT4R", "id": 119}, {"phone": "0527808678", "name": "علاءشهر", "sim": "899720201493752420", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-09", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية مدخل سكاي", "source": "EoT4R", "id": 120}, {"phone": "0539585575", "name": "Alal", "sim": "8997207105037445928", "carrier": "هوت", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-10", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL 150 جيجا هوت موبايل تدعم الجيل الخامس", "source": "EoT4R", "id": 121}, {"phone": "0539586238", "name": "Alaa", "sim": "8997207105037446041", "carrier": "هوت", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-11-25", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL 150 جيجا هوت موبايل تدعم الجيل الخامس", "source": "EoT4R", "id": 122}, {"phone": "0555029321", "name": "0555041747", "sim": "899720204500786191", "carrier": "سلكوم", "agency": "مسار (EoT4R)", "status": "مفعل", "endDate": "2026-12-15", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "AL سلكوم 300 جيجا رزمة عرض شهرية", "source": "EoT4R", "id": 123}, {"phone": "0529348159", "name": "نور فلفل فلة", "sim": "899720201993457629", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفعل", "endDate": "2026-11-20", "reminder": "تذكير قبل يوم", "notes": "الوكيل: أسامه احمد", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا", "source": "QuickLine", "id": 124}, {"phone": "0525429708", "name": "كريم البريم", "sim": "899720206474761431", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفعل", "endDate": "2026-11-25", "reminder": "تذكير قبل يوم", "notes": "الوكيل: أحمد العزازي", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 500 جيجا + خدمة 5G", "source": "QuickLine", "id": 125}, {"phone": "0522802650", "name": "زياد عليان .", "sim": "899720204496823073", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفعل", "endDate": "2026-11-25", "reminder": "تذكير قبل يوم", "notes": "الوكيل: ابو رواد", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 50 جيجا", "source": "QuickLine", "id": 126}, {"phone": "0522802060", "name": "محمد خلف .", "sim": "899720204496824394", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفعل", "endDate": "2026-11-25", "reminder": "تذكير قبل يوم", "notes": "الوكيل: ابو رواد", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا", "source": "QuickLine", "id": 127}, {"phone": "0524651498", "name": "ابو عبيدة", "sim": "899720201508779855", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفعل", "endDate": "2026-11-26", "reminder": "تذكير قبل يوم", "notes": "الوكيل: أحمد العزازي", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا +خدمة 5G \"عرض 3 اشهر \"", "source": "QuickLine", "id": 128}, {"phone": "0528723121", "name": "دلول .جديد", "sim": "899720201495242016", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفعل", "endDate": "2026-12-05", "reminder": "تذكير قبل يوم", "notes": "الوكيل: أحمد العزازي", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا", "source": "QuickLine", "id": 129}, {"phone": "0526814693", "name": "0", "sim": "899720201324758992", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفعل", "endDate": "2026-12-07", "reminder": "تذكير قبل يوم", "notes": "الوكيل: ابو رواد", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا \"عرض 3 اشهر \" 09-2026", "source": "QuickLine", "id": 130}, {"phone": "0523812076", "name": "نور الرضيع OSAMA", "sim": "899720200523812076", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفعل", "endDate": "2026-12-09", "reminder": "تذكير قبل يوم", "notes": "الوكيل: أسامه احمد", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا", "source": "QuickLine", "id": 131}, {"phone": "0528772960", "name": "سالم سعدة OSAMA", "sim": "899720204500513132", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفعل", "endDate": "2026-12-15", "reminder": "تذكير قبل يوم", "notes": "الوكيل: أسامه احمد", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا", "source": "QuickLine", "id": 132}, {"phone": "0524510801", "name": "وسام المقيد OSAMA", "sim": "899720204998156683", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفعل", "endDate": "2026-12-15", "reminder": "تذكير قبل يوم", "notes": "الوكيل: أسامه احمد", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا", "source": "QuickLine", "id": 133}, {"phone": "0525231835", "name": "عمار ابو لبده", "sim": "899720208497711096", "carrier": "سلكوم", "agency": "كويك لاين", "status": "مفعل", "endDate": "2027-01-16", "reminder": "تذكير قبل يوم", "notes": "الوكيل: أحمد العزازي", "simType": "SIM بلاستيك", "agencyPrice": 0, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "سلكوم 400 جبجا \"عرض 3 اشهر \" 09-2026", "source": "QuickLine", "id": 134}, {"phone": "0525523204", "name": "جامع", "sim": "", "carrier": "سلكوم", "agency": "توب اب (ART)", "status": "مفعل", "endDate": "2027-02-10", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 70, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "باقة توب اب", "source": "ART TopUp", "id": 135}, {"phone": "0503178178", "name": "جامع", "sim": "", "carrier": "بلفون", "agency": "توب اب (ART)", "status": "مفعل", "endDate": "2027-02-07", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 70, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "باقة توب اب", "source": "ART TopUp", "id": 136}, {"phone": "0554687640", "name": "ايسم", "sim": "", "carrier": "رامي ليفي", "agency": "توب اب (ART)", "status": "مفعل", "endDate": "2027-02-01", "reminder": "تذكير قبل يوم", "notes": "تمت العملية بنجاح", "simType": "eSIM", "agencyPrice": 35, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "باقة توب اب", "source": "ART TopUp", "id": 137}, {"phone": "0554687135", "name": "Qias", "sim": "", "carrier": "رامي ليفي", "agency": "توب اب (ART)", "status": "مفعل", "endDate": "2027-01-24", "reminder": "تذكير قبل يوم", "notes": "تمت العملية بنجاح", "simType": "SIM بلاستيك", "agencyPrice": 35, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "باقة توب اب", "source": "ART TopUp", "id": 138}, {"phone": "0555044529", "name": "Ana", "sim": "", "carrier": "هوت", "agency": "توب اب (ART)", "status": "مفعل", "endDate": "2027-03-23", "reminder": "تذكير قبل يوم", "notes": "", "simType": "SIM بلاستيك", "agencyPrice": 60, "customerPrice": 0, "debt": 0, "hasDebt": false, "package": "باقة توب اب", "source": "ART TopUp", "id": 139}];
+    const STORAGE_KEY = 'sim_subscriptions_app_v1';
+    const TODAY_STR = '2026-11-19';
+
+    let subscriptions = [];
+    let activeStatusFilter = 'الكل';
+
+    function loadData() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            subscriptions = parsed;
+            return;
+          }
+        }
+      } catch (e) {}
+      subscriptions = JSON.parse(JSON.stringify(INITIAL_SUBSCRIPTIONS));
+    }
+
+    function saveData() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(subscriptions));
+      } catch (e) {}
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.remove('hidden');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => {
+        t.classList.add('hidden');
+      }, 2400);
+    }
+
+    function copyText(text, label) {
+      if (!text) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => showToast('تم نسخ ' + label + ': ' + text)).catch(() => fallbackCopy(text, label));
+      } else {
+        fallbackCopy(text, label);
+      }
+    }
+
+    function fallbackCopy(text, label) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast('تم نسخ ' + label + ': ' + text);
+      } catch (e) {}
+      document.body.removeChild(ta);
+    }
+
+    function calcDaysLeft(endDate) {
+      if (!endDate) return null;
+      const t = new Date(TODAY_STR + 'T00:00:00');
+      const e = new Date(endDate + 'T00:00:00');
+      if (isNaN(e.getTime())) return null;
+      return Math.round((e - t) / (1000 * 60 * 60 * 24));
+    }
+
+    function formatDisplayDate(iso) {
+      if (!iso) return 'بدون موعد';
+      const parts = iso.split('-');
+      if (parts.length !== 3) return iso;
+      return parts[2] + '/' + parts[1] + '/' + parts[0];
+    }
+
+    function formatWaPhone(phone) {
+      let clean = (phone || '').replace(/\D/g, '');
+      if (clean.startsWith('05')) return '972' + clean.slice(1);
+      if (clean.startsWith('972')) return clean;
+      if (clean.startsWith('5')) return '972' + clean;
+      return clean;
+    }
+
+    function buildContactMessage(sub) {
+      const name = sub.name && sub.name !== 'بدون اسم' ? sub.name : 'زبوننا العزيز';
+      const dateTxt = sub.endDate ? formatDisplayDate(sub.endDate) : 'قريباً';
+      let msg = `مرحباً ${name}، تذكير بخصوص اشتراك الرقم ${sub.phone}`;
+      if (sub.endDate) msg += ` موعد التجديد: ${dateTxt}`;
+      if (sub.customerPrice > 0) msg += `، سعر التجديد: ${sub.customerPrice} شيكل`;
+      if (sub.debt > 0) msg += `، ويوجد رصيد مستحق (دين): ${sub.debt} شيكل`;
+      else if (sub.hasDebt) msg += `، ويوجد دين مستحق يرجى تسويته`;
+      msg += `.`;
+      return msg;
+    }
+
+    function populateFilterDropdowns() {
+      const carriers = [...new Set(subscriptions.map(s => (s.carrier || '').trim()).filter(Boolean))].sort();
+      const agencies = [...new Set(subscriptions.map(s => (s.agency || '').trim()).filter(Boolean))].sort();
+
+      const cSel = document.getElementById('filterCarrier');
+      const curC = cSel.value;
+      cSel.innerHTML = '<option value="الكل">كل الشركات</option>' + carriers.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      if (carriers.includes(curC)) cSel.value = curC;
+
+      const aSel = document.getElementById('filterAgency');
+      const curA = aSel.value;
+      aSel.innerHTML = '<option value="الكل">كل الوكالات</option><option value="غير محدد">بدون وكالة محددة</option>' + agencies.map(a => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
+      if (agencies.includes(curA) || curA === 'غير محدد') aSel.value = curA;
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function updateKPIsAndCounts() {
+      const total = subscriptions.length;
+      const active = subscriptions.filter(s => s.status === 'مفعل').length;
+      const suspended = subscriptions.filter(s => s.status === 'معلق').length;
+      const disc = subscriptions.filter(s => s.status === 'مفصول').length;
+      const alerts = subscriptions.filter(s => {
+        if (s.status !== 'مفعل') return false;
+        const d = calcDaysLeft(s.endDate);
+        return d !== null && d <= 3;
+      }).length;
+      const debtItems = subscriptions.filter(s => s.hasDebt || (s.debt || 0) > 0);
+      const totalDebt = subscriptions.reduce((acc, s) => acc + (Number(s.debt) || 0), 0);
+      const totalCust = subscriptions.reduce((acc, s) => acc + (Number(s.customerPrice) || 0), 0);
+      const totalAgency = subscriptions.reduce((acc, s) => acc + (Number(s.agencyPrice) || 0), 0);
+      const esimCount = subscriptions.filter(s => s.simType === 'eSIM').length;
+      const plasticCount = total - esimCount;
+
+      document.getElementById('headerSubtitle').textContent = `${total} شريحة · مفعل ${active} · معلق ${suspended} · مفصول ${disc}`;
+      document.getElementById('kpiTotal').textContent = total;
+      document.getElementById('kpiSimSplit').textContent = `eSIM: ${esimCount} · بلاستيك: ${plasticCount}`;
+      document.getElementById('kpiAlerts').textContent = alerts;
+      document.getElementById('kpiActiveCount').textContent = `مفعل: ${active}`;
+      document.getElementById('kpiDebt').textContent = `${totalDebt} ₪`;
+      document.getElementById('kpiDebtCount').textContent = `${debtItems.length} زبون عليه دين`;
+      document.getElementById('kpiRevenue').textContent = `${totalCust} ₪`;
+      document.getElementById('kpiAgencyCost').textContent = `سعر الوكالة: ${totalAgency} ₪`;
+
+      document.getElementById('cntAll').textContent = total;
+      document.getElementById('cntActive').textContent = active;
+      document.getElementById('cntSuspended').textContent = suspended;
+      document.getElementById('cntDisc').textContent = disc;
+      document.getElementById('cntAlerts').textContent = alerts;
+      document.getElementById('cntDebt').textContent = debtItems.length;
+    }
+
+    function getFilteredList() {
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      const carrierF = document.getElementById('filterCarrier').value;
+      const agencyF = document.getElementById('filterAgency').value;
+      const simTypeF = document.getElementById('filterSimType').value;
+      const sortBy = document.getElementById('sortSelect').value;
+
+      let list = subscriptions.filter(s => {
+        if (activeStatusFilter === 'مفعل' && s.status !== 'مفعل') return false;
+        if (activeStatusFilter === 'معلق' && s.status !== 'معلق') return false;
+        if (activeStatusFilter === 'مفصول' && s.status !== 'مفصول') return false;
+        if (activeStatusFilter === 'ديون' && !(s.hasDebt || (s.debt || 0) > 0)) return false;
+        if (activeStatusFilter === 'تنبيهات') {
+          if (s.status !== 'مفعل') return false;
+          const d = calcDaysLeft(s.endDate);
+          if (d === null || d > 3) return false;
+        }
+        if (carrierF !== 'الكل' && (s.carrier || '').trim() !== carrierF) return false;
+        if (agencyF === 'غير محدد' && (s.agency || '').trim() !== '') return false;
+        if (agencyF !== 'الكل' && agencyF !== 'غير محدد' && (s.agency || '').trim() !== agencyF) return false;
+        if (simTypeF !== 'الكل' && s.simType !== simTypeF) return false;
+
+        if (q) {
+          const hay = `${s.phone} ${s.name} ${s.sim} ${s.carrier} ${s.agency} ${s.notes} ${s.package} ${s.simType}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+
+      list.sort((a, b) => {
+        if (sortBy === 'nearest' || sortBy === 'latest') {
+          const da = a.endDate ? new Date(a.endDate).getTime() : 9999999999999;
+          const db = b.endDate ? new Date(b.endDate).getTime() : 9999999999999;
+          return sortBy === 'nearest' ? da - db : db - da;
+        }
+        if (sortBy === 'debt') {
+          const debtDiff = (b.debt || 0) - (a.debt || 0);
+          if (debtDiff !== 0) return debtDiff;
+          return (b.hasDebt ? 1 : 0) - (a.hasDebt ? 1 : 0);
+        }
+        if (sortBy === 'price') {
+          return (b.customerPrice || 0) - (a.customerPrice || 0);
+        }
+        if (sortBy === 'name') {
+          return (a.name || '').localeCompare(b.name || '', 'ar');
+        }
+        return 0;
+      });
+
+      return list;
+    }
+
+    function renderList() {
+      updateKPIsAndCounts();
+      const list = getFilteredList();
+      const container = document.getElementById('subsList');
+      const empty = document.getElementById('emptyState');
+      const hasFilters = activeStatusFilter !== 'الكل' ||
+        document.getElementById('searchInput').value.trim() !== '' ||
+        document.getElementById('filterCarrier').value !== 'الكل' ||
+        document.getElementById('filterAgency').value !== 'الكل' ||
+        document.getElementById('filterSimType').value !== 'الكل';
+
+      document.getElementById('btnResetFilters').classList.toggle('hidden', !hasFilters);
+      document.getElementById('resultsInfo').textContent = `عرض ${list.length} من أصل ${subscriptions.length} اشتراك`;
+
+      if (list.length === 0) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      container.innerHTML = list.map(sub => {
+        const days = calcDaysLeft(sub.endDate);
+        let statusBadge = '';
+        if (sub.status === 'مفصول') {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700">مفصول</span>`;
+        } else if (sub.status === 'معلق') {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">معلق</span>`;
+        } else if (days === null) {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600">بدون موعد</span>`;
+        } else if (days < 0) {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-700">منتهي منذ ${Math.abs(days)} يوم</span>`;
+        } else if (days <= 3) {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">باقي ${days} أيام</span>`;
+        } else {
+          statusBadge = `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700">باقي ${days} يوم</span>`;
+        }
+
+        const isEsim = sub.simType === 'eSIM';
+        const simBadgeClass = isEsim
+          ? 'bg-indigo-100 text-indigo-800 border-indigo-200'
+          : 'bg-slate-100 text-slate-700 border-slate-200';
+        const simIcon = isEsim ? '📲 eSIM' : '💳 بلاستيك';
+
+        const hasDebtFlag = sub.hasDebt || (sub.debt || 0) > 0;
+        const debtText = (sub.debt || 0) > 0 ? `${sub.debt} ₪` : (sub.hasDebt ? 'غير محدد' : '0 ₪');
+
+        const msgText = encodeURIComponent(buildContactMessage(sub));
+        const waPhone = formatWaPhone(sub.phone);
+
+        return `
+          <article class="bg-white rounded-2xl p-3.5 border ${hasDebtFlag ? 'border-rose-300' : 'border-slate-200'} shadow-sm flex flex-col justify-between gap-2.5">
+            <div class="space-y-2">
+              <!-- Top row: phone + badges -->
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <button type="button" data-action="copy-phone" data-val="${escapeHtml(sub.phone)}"
+                    class="text-base font-extrabold text-slate-900 ltr-num hover:text-emerald-600 transition" title="نسخ الرقم">
+                    ${escapeHtml(sub.phone)}
+                  </button>
+                  ${statusBadge}
+                </div>
+                <button type="button" data-action="toggle-sim" data-id="${sub.id}"
+                  class="px-2 py-0.5 rounded-lg text-[11px] font-bold border ${simBadgeClass} hover:opacity-80 transition" title="اضغط للتبديل بين eSIM و SIM بلاستيك">
+                  ${simIcon}
+                </button>
+              </div>
+
+              <!-- Customer & Carrier/Agency -->
+              <div>
+                <div class="text-sm font-bold text-slate-800">${escapeHtml(sub.name || 'بدون اسم')}</div>
+                <div class="flex items-center gap-1.5 flex-wrap mt-1">
+                  ${sub.carrier ? `<span class="px-2 py-0.5 rounded-md bg-sky-50 text-sky-800 text-[11px] font-bold border border-sky-100">${escapeHtml(sub.carrier)}</span>` : ''}
+                  ${sub.agency ? `<span class="px-2 py-0.5 rounded-md bg-violet-50 text-violet-800 text-[11px] font-bold border border-violet-100">وكالة: ${escapeHtml(sub.agency)}</span>` : `<span class="px-2 py-0.5 rounded-md bg-slate-50 text-slate-400 text-[11px] font-semibold">وكالة: غير محدد</span>`}
+                  ${sub.package ? `<span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-semibold truncate max-w-[220px]" title="${escapeHtml(sub.package)}">${escapeHtml(sub.package)}</span>` : ''}
+                </div>
+              </div>
+
+              <!-- Pricing & Debt Grid -->
+              <div class="grid grid-cols-3 gap-1.5 text-center">
+                <div class="bg-emerald-50/70 border border-emerald-100 rounded-xl py-1.5 px-1">
+                  <div class="text-[10px] text-emerald-700 font-semibold">تجديد الزبون</div>
+                  <div class="text-xs font-extrabold text-emerald-800 ltr-num">${sub.customerPrice > 0 ? sub.customerPrice + ' ₪' : '—'}</div>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-1">
+                  <div class="text-[10px] text-slate-500 font-semibold">سعر الوكالة</div>
+                  <div class="text-xs font-extrabold text-slate-800 ltr-num">${sub.agencyPrice > 0 ? sub.agencyPrice + ' ₪' : '—'}</div>
+                </div>
+                <div class="${hasDebtFlag ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'} border rounded-xl py-1.5 px-1">
+                  <div class="text-[10px] ${hasDebtFlag ? 'text-rose-700' : 'text-slate-500'} font-semibold">الدين</div>
+                  <div class="text-xs font-extrabold ${hasDebtFlag ? 'text-rose-700' : 'text-slate-500'} ltr-num">${debtText}</div>
+                </div>
+              </div>
+
+              <!-- ICCID & Notes -->
+              <div class="text-[11px] text-slate-500 space-y-1">
+                ${sub.sim ? `
+                  <div class="flex items-center gap-1.5">
+                    <span>الشريحة:</span>
+                    <button type="button" data-action="copy-sim" data-val="${escapeHtml(sub.sim)}" class="ltr-num font-semibold text-slate-700 hover:text-emerald-600">${escapeHtml(sub.sim)}</button>
+                  </div>
+                ` : ''}
+                ${sub.notes ? `<div class="bg-amber-50/70 text-amber-900 border border-amber-200/80 rounded-lg px-2 py-1 text-[11px] font-semibold">📝 ${escapeHtml(sub.notes)}</div>` : ''}
+                <div class="text-[11px] text-slate-400">
+                  موعد الفصل: <span class="font-bold text-slate-600 ltr-num">${formatDisplayDate(sub.endDate)}</span>
+                  ${sub.reminder ? ` · ${escapeHtml(sub.reminder)}` : ''}
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5 flex-wrap">
+              <div class="flex items-center gap-1">
+                <a href="sms:${escapeHtml(sub.phone)}?body=${msgText}" class="px-2.5 py-1.5 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 text-[11px] font-bold border border-sky-200">رسالة</a>
+                <a href="tel:${escapeHtml(sub.phone)}" class="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[11px] font-bold border border-emerald-200">اتصال</a>
+                <a href="https://wa.me/${waPhone}?text=${msgText}" target="_blank" rel="noopener" class="px-2.5 py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 text-[11px] font-bold border border-green-200">واتساب</a>
+              </div>
+              <div class="flex items-center gap-1">
+                ${hasDebtFlag ? `<button type="button" data-action="clear-debt" data-id="${sub.id}" class="px-2 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-[11px] font-bold border border-rose-200">سداد</button>` : ''}
+                <button type="button" data-action="renew" data-id="${sub.id}" class="px-2 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-[11px] font-bold border border-indigo-200">+30 يوم</button>
+                <button type="button" data-action="edit" data-id="${sub.id}" class="px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-[11px] font-bold">تعديل</button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function openEditModal(id) {
+      const modal = document.getElementById('editModal');
+      const delBtn = document.getElementById('btnDeleteSub');
+      if (id) {
+        const sub = subscriptions.find(s => s.id === id);
+        if (!sub) return;
+        document.getElementById('modalTitle').textContent = 'تعديل الاشتراك';
+        document.getElementById('fieldId').value = sub.id;
+        document.getElementById('fieldPhone').value = sub.phone || '';
+        document.getElementById('fieldName').value = sub.name || '';
+        document.getElementById('fieldSimType').value = sub.simType || 'SIM بلاستيك';
+        document.getElementById('fieldStatus').value = sub.status || 'مفعل';
+        document.getElementById('fieldCarrier').value = sub.carrier || '';
+        document.getElementById('fieldAgency').value = sub.agency || '';
+        document.getElementById('fieldCustomerPrice').value = sub.customerPrice || 0;
+        document.getElementById('fieldAgencyPrice').value = sub.agencyPrice || 0;
+        document.getElementById('fieldDebt').value = sub.debt || 0;
+        document.getElementById('fieldHasDebt').checked = Boolean(sub.hasDebt || (sub.debt || 0) > 0);
+        document.getElementById('fieldEndDate').value = sub.endDate || '';
+        document.getElementById('fieldReminder').value = sub.reminder || 'تذكير قبل يوم';
+        document.getElementById('fieldSim').value = sub.sim || '';
+        document.getElementById('fieldPackage').value = sub.package || '';
+        document.getElementById('fieldNotes').value = sub.notes || '';
+        delBtn.classList.remove('hidden');
+      } else {
+        document.getElementById('modalTitle').textContent = 'إضافة اشتراك جديد';
+        document.getElementById('subForm').reset();
+        document.getElementById('fieldId').value = '';
+        document.getElementById('fieldSimType').value = 'SIM بلاستيك';
+        document.getElementById('fieldStatus').value = 'مفعل';
+        document.getElementById('fieldCustomerPrice').value = 0;
+        document.getElementById('fieldAgencyPrice').value = 0;
+        document.getElementById('fieldDebt').value = 0;
+        document.getElementById('fieldHasDebt').checked = false;
+        delBtn.classList.add('hidden');
+      }
+      modal.classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.add('hidden');
+    }
+
+    // Event Listeners
+    document.getElementById('statusTabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('.status-tab');
+      if (!btn) return;
+      activeStatusFilter = btn.dataset.status;
+      document.querySelectorAll('.status-tab').forEach(b => {
+        b.classList.remove('bg-slate-900', 'text-white');
+        if (!b.classList.contains('bg-amber-50') && !b.classList.contains('bg-rose-50')) {
+          b.classList.add('bg-slate-100', 'text-slate-700');
+        }
+      });
+      btn.classList.remove('bg-slate-100', 'text-slate-700');
+      btn.classList.add('bg-slate-900', 'text-white');
+      renderList();
+    });
+
+    ['searchInput', 'filterCarrier', 'filterAgency', 'filterSimType', 'sortSelect'].forEach(id => {
+      document.getElementById(id).addEventListener('input', renderList);
+      document.getElementById(id).addEventListener('change', renderList);
+    });
+
+    document.getElementById('btnResetFilters').addEventListener('click', () => {
+      activeStatusFilter = 'الكل';
+      document.getElementById('searchInput').value = '';
+      document.getElementById('filterCarrier').value = 'الكل';
+      document.getElementById('filterAgency').value = 'الكل';
+      document.getElementById('filterSimType').value = 'الكل';
+      document.getElementById('sortSelect').value = 'nearest';
+      document.querySelector('.status-tab[data-status="الكل"]').click();
+    });
+
+    document.getElementById('subsList').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const id = Number(btn.dataset.id);
+
+      if (action === 'copy-phone') {
+        copyText(btn.dataset.val, 'رقم الهاتف');
+      } else if (action === 'copy-sim') {
+        copyText(btn.dataset.val, 'رقم الشريحة');
+      } else if (action === 'toggle-sim') {
+        const sub = subscriptions.find(s => s.id === id);
+        if (sub) {
+          sub.simType = sub.simType === 'eSIM' ? 'SIM بلاستيك' : 'eSIM';
+          saveData();
+          renderList();
+          showToast(`تم التحويل إلى ${sub.simType}`);
+        }
+      } else if (action === 'clear-debt') {
+        const sub = subscriptions.find(s => s.id === id);
+        if (sub) {
+          sub.debt = 0;
+          sub.hasDebt = false;
+          saveData();
+          renderList();
+          showToast(`تم تصفير دين ${sub.name || sub.phone}`);
+        }
+      } else if (action === 'renew') {
+        const sub = subscriptions.find(s => s.id === id);
+        if (sub) {
+          const base = sub.endDate ? new Date(sub.endDate + 'T00:00:00') : new Date(TODAY_STR + 'T00:00:00');
+          base.setDate(base.getDate() + 30);
+          sub.endDate = base.toISOString().slice(0, 10);
+          sub.status = 'مفعل';
+          saveData();
+          renderList();
+          showToast(`تم تجديد ${sub.phone} حتى ${formatDisplayDate(sub.endDate)}`);
+        }
+      } else if (action === 'edit') {
+        openEditModal(id);
+      }
+    });
+
+    document.getElementById('btnAddSub').addEventListener('click', () => openEditModal(null));
+    document.getElementById('btnCloseModal').addEventListener('click', closeEditModal);
+    document.getElementById('btnCancelModal').addEventListener('click', closeEditModal);
+
+    document.getElementById('subForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const idVal = document.getElementById('fieldId').value;
+      const debtNum = Number(document.getElementById('fieldDebt').value) || 0;
+      const payload = {
+        phone: document.getElementById('fieldPhone').value.trim(),
+        name: document.getElementById('fieldName').value.trim() || 'بدون اسم',
+        simType: document.getElementById('fieldSimType').value,
+        status: document.getElementById('fieldStatus').value,
+        carrier: document.getElementById('fieldCarrier').value.trim(),
+        agency: document.getElementById('fieldAgency').value.trim(),
+        customerPrice: Number(document.getElementById('fieldCustomerPrice').value) || 0,
+        agencyPrice: Number(document.getElementById('fieldAgencyPrice').value) || 0,
+        debt: debtNum,
+        hasDebt: document.getElementById('fieldHasDebt').checked || debtNum > 0,
+        endDate: document.getElementById('fieldEndDate').value,
+        reminder: document.getElementById('fieldReminder').value,
+        sim: document.getElementById('fieldSim').value.trim(),
+        package: document.getElementById('fieldPackage').value.trim(),
+        notes: document.getElementById('fieldNotes').value.trim(),
+      };
+
+      if (idVal) {
+        const idx = subscriptions.findIndex(s => s.id === Number(idVal));
+        if (idx !== -1) {
+          subscriptions[idx] = { ...subscriptions[idx], ...payload };
+          showToast('تم حفظ التعديلات');
+        }
+      } else {
+        const maxId = subscriptions.reduce((m, s) => Math.max(m, s.id || 0), 0);
+        subscriptions.unshift({ id: maxId + 1, ...payload });
+        showToast('تمت إضافة الاشتراك الجديد');
+      }
+      saveData();
+      populateFilterDropdowns();
+      renderList();
+      closeEditModal();
+    });
+
+    document.getElementById('btnDeleteSub').addEventListener('click', () => {
+      const idVal = Number(document.getElementById('fieldId').value);
+      if (!idVal) return;
+      subscriptions = subscriptions.filter(s => s.id !== idVal);
+      saveData();
+      populateFilterDropdowns();
+      renderList();
+      closeEditModal();
+      showToast('تم حذف الاشتراك');
+    });
+
+    // Data Modal
+    document.getElementById('btnOpenDataModal').addEventListener('click', () => {
+      document.getElementById('dataModal').classList.remove('hidden');
+    });
+    document.getElementById('btnCloseDataModal').addEventListener('click', () => {
+      document.getElementById('dataModal').classList.add('hidden');
+    });
+
+    document.getElementById('btnDownloadJson').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(subscriptions, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'subscriptions_backup.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('تم تحميل النسخة الاحتياطية JSON');
+    });
+
+    document.getElementById('btnDownloadCsv').addEventListener('click', () => {
+      const headers = ['الهاتف','الاسم','نوع الشريحة','الحالة','الشركة','الوكالة','سعر الزبون','سعر الوكالة','الدين','تاريخ الفصل','رقم الشريحة','الحزمة','ملاحظات'];
+      const rows = subscriptions.map(s => [
+        s.phone, s.name, s.simType, s.status, s.carrier, s.agency,
+        s.customerPrice || 0, s.agencyPrice || 0, s.debt || 0,
+        s.endDate || '', s.sim || '', s.package || '', (s.notes || '').replace(/\n/g, ' ')
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+      const csv = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'subscriptions.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('تم تحميل جدول CSV');
+    });
+
+    document.getElementById('importFileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const imported = JSON.parse(ev.target.result);
+          if (Array.isArray(imported)) {
+            subscriptions = imported;
+            saveData();
+            populateFilterDropdowns();
+            renderList();
+            document.getElementById('dataModal').classList.add('hidden');
+            showToast(`تم استيراد ${imported.length} اشتراك بنجاح`);
+          }
+        } catch (err) {
+          showToast('ملف JSON غير صالح');
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    document.getElementById('btnResetDefault').addEventListener('click', () => {
+      subscriptions = JSON.parse(JSON.stringify(INITIAL_SUBSCRIPTIONS));
+      saveData();
+      populateFilterDropdowns();
+      renderList();
+      document.getElementById('dataModal').classList.add('hidden');
+      showToast('تمت استعادة البيانات الأصلية');
+    });
+
+    // Init
+    loadData();
+    populateFilterDropdowns();
+    renderList();
+  </script>
+</body>
+</html>
